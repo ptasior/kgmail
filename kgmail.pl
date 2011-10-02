@@ -18,7 +18,9 @@ sub new
 	{
 		my $self = {
 				_wnd => 0,
-				_processing => 0
+				_processing => 0,
+				_user => '',
+				_pwd => ''
 			};
 		$instance = bless $self, $class;
 	}
@@ -30,6 +32,7 @@ sub init
 	my ($self) = @_;
 	my $w = Wnd->new;
 	$self->{_wnd} = $w;
+	die 'no auth data' if ! Auth->getData;
 	$w->timerEvent;
 }
 
@@ -44,6 +47,20 @@ sub processing
 	my ($self, $v) = @_;
 	$self->{_processing} = $v if defined($v);
 	return $self->{_processing};
+}
+
+sub user
+{
+	my ($self, $v) = @_;
+	$self->{_user} = $v if defined($v);
+	return $self->{_user};
+}
+
+sub pwd
+{
+	my ($self, $v) = @_;
+	$self->{_pwd} = $v if defined($v);
+	return $self->{_pwd};
 }
 
 ###########################################################################################
@@ -106,8 +123,8 @@ sub check
 
 	my $client = Mail::IMAPClient->new(
 			Socket   => $socket,
-			User     => 'user',
-			Password => 'pwd',
+			User     => $mapp->user,
+			Password => $mapp->pwd,
 		)
 		or die "new(): $@";
 
@@ -212,48 +229,71 @@ sub showHide
 }
 
 ###########################################################################################
+package Auth;
+
+use Net::DBus qw(:typing);
+use QtCore4;
+use QtGui4;
+use QtCore4::isa qw(Qt::Widget);
+use QtCore4::slots
+		timerEvent => [],
+		showHide => ['QSystemTrayIcon::ActivationReason'];
+		
+use QtCore4::debug qw(ambiguous);
+
+sub new
+{
+	my $class = shift;
+	$class->SUPER::NEW(@_);
+	
+	my $self = {};
+
+	bless $self, $class;
+	return $self;
+}
+
+sub getData
+{
+	my $mapp = MApp->new;
+	
+	my $app_name = 'kgmail';
+	my $bus = Net::DBus->find() or die "Can't find DBus";
+	my $kwallet_service = $bus->get_service('org.kde.kwalletd') or die "Can't get kwallet";
+
+	my $KWallet = $kwallet_service->get_object('/modules/kwalletd', 'org.kde.KWallet') or die "Can't find networkWallet";
+	my $kwallet_handle = $KWallet->open($KWallet->networkWallet(), 0, $app_name);
+	
+	if($KWallet->hasFolder($kwallet_handle, $app_name, $app_name))
+	{
+		$KWallet->createFolder($kwallet_handle, $app_name, $app_name);
+		# $KWallet->writePassword($kwallet_handle, $app_name, 'Password', 'qq', $app_name);
+		my $u = $KWallet->readPassword($kwallet_handle, $app_name, 'User', $app_name);
+		my $p = $KWallet->readPassword($kwallet_handle, $app_name, 'Password', $app_name);
+		print "User ID  = $u\n";
+		print "Password = $p\n";
+		$mapp->user($u);
+		$mapp->pwd($p);
+		
+		return 1;
+	}
+	
+	return 0;
+}
+
+###########################################################################################
 package main;
 
 use QtCore4;
 
 my $a = Qt::Application(\@ARGV);
 
-our $mapp = MApp->new;
-$mapp->init();
+my $mapp = MApp->new;
+$mapp->init;
+
+# my $aw = Auth->new;
+# $aw->setVisible(1);
 
 exit $a->exec;
 
-
 # connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(iconActivated(QSystemTrayIcon::ActivationReason)));
 
-# use v5.12;
-# 
-# use strict;
-# use warnings;
-# use Data::Dump qw(dump);
-# 
-# use Net::DBus qw(:typing);
-# my $app_name = "password-extract-in-perl";
-# 
-# my $bus = Net::DBus->find() or die "Can't find DBus";
-# 
-# my $kwallet_service = $bus->get_service('org.kde.kwalletd') or die "Ca
-# +n't get kwallet";
-# 
-# my $KWallet = $kwallet_service->get_object('/modules/kwalletd', 'org.k
-# +de.KWallet') or die "Can't find networkWallet";
-# my $networkWallet = $KWallet->networkWallet();
-# say "Network Wallet = $networkWallet";
-# 
-# my $kwallet_handle = $KWallet->open($networkWallet, 0, $app_name);
-# say "Opened = $kwallet_handle";
-# 
-# my $folders = $KWallet->folderList($kwallet_handle,$app_name);
-# say "Folders = ", dump($folders);
-# 
-# my $u = $KWallet->readPassword($kwallet_handle, 'MyFolder','Some_Useri
-# +d_Key', $app_name);
-# my $p = $KWallet->readPassword($kwallet_handle, 'MyFolder','Some_Passw
-# +ord_Key', $app_name);
-# say "User ID  = ", dump($u);
-# say "Password = ", dump($p);

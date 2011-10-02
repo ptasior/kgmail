@@ -1,7 +1,6 @@
- 
 #!/usr/bin/perl
 
-# use strict;
+use strict;
 use warnings;
 
 # use Mail::IMAPClient;
@@ -19,8 +18,8 @@ use warnings;
 # # Login is automatic as usual when we provide User and Password
 # my $client = Mail::IMAPClient->new(
 # 		Socket   => $socket,
-# 		User     => 'user',
-# 		Password => 'pwd',
+# 		User     => 'ptasior3@gazeta.pl',
+# 		Password => 'Pan_Tadeusz',
 # 	)
 # 	or die "new(): $@";
 # 
@@ -51,16 +50,33 @@ use QtCore4;
 use QtGui4;
 
 my $a = Qt::Application(\@ARGV);
+
 my $icon = Qt::Icon('icon.png'); 
+my $menu = Qt::Menu;
+my $acQuit= Qt::Action(Qt::Icon('icon.png'), 'Quit', $menu);
 my $trayIcon = Qt::SystemTrayIcon($icon);
+my $txt = Qt::TextBrowser;
+
+$menu->addAction($acQuit);
+Qt::Object::connect($acQuit, SIGNAL 'triggered()', $a, SLOT 'quit()');
+
+$trayIcon->setContextMenu($menu);
 $trayIcon->show;
 
+$txt->resize(160, 160);
+$txt->setText("<b>aaa</b>qqrq");
+$txt->setWindowFlags(0x00000800);
 
-my $hello = Qt::PushButton("Hello World!", undef);
-$hello->resize(160, 25);
-$hello->show;
+# Not the best behaviour, but the easiest in implementation ;)
+Qt::Object::connect($trayIcon, SIGNAL 'activated(QSystemTrayIcon::ActivationReason)', $txt, SLOT 'show()');
+Qt::Object::connect($txt, SIGNAL 'selectionChanged()', $txt, SLOT 'hide()');
+
+$trayIcon->setToolTip('Unread: 3');
+
 exit $a->exec;
 
+
+# connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(iconActivated(QSystemTrayIcon::ActivationReason)));
 
 # use v5.12;
 # 

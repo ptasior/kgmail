@@ -85,6 +85,7 @@ package Imap;
 use Mail::IMAPClient;
 use IO::Socket::SSL;
 
+
 sub new
 {
 	my $class = shift;
@@ -148,7 +149,7 @@ sub check
 
 	$client->select('INBOX');
 
-	print "Checking\n";
+	print "Checking mails\n"; $|++;
 
 	my @unread = $client->unseen;
 	$self->{_cnt} = $client->unseen_count;
@@ -184,12 +185,15 @@ use QtCore4::slots
 		
 use QtCore4::debug qw(ambiguous);
 
+use MIME::Words qw(:all);
+
+
 sub new
 {
 	my $class = shift;
 	$class->SUPER::NEW(@_);
 	
-	setGeometry(qApp->desktop()->screenGeometry()->width()-200, qApp->desktop()->screenGeometry()->height()-200, 200, 200);
+	setGeometry(qApp->desktop()->screenGeometry()->width()-300, qApp->desktop()->screenGeometry()->height()-300, 300, 300);
 	setWindowFlags(0x00000800);
 
 	my $timer = Qt::Timer(this);
@@ -248,8 +252,8 @@ sub timerEvent
 	{
 		my $bd = $im->body($i);
 		$bd =~ s/<.*?>//g;
-		$bd = substr($bd,0,70);
-		$txt .= '<b>'.$im->subject($i).'</b> <i style="font-size: 20%">'.$im->author($i).'</i><br>'.$bd.'<br><br><hr>';
+		$bd = substr($bd,0,140);
+		$txt .= '<b>'.decode_mimewords($im->subject($i)).'</b> <i style="font-size: 20%">'.decode_mimewords($im->author($i)).'</i><br>'.$bd.'<br><br><hr>';
 	}
 	
 	if($im->cnt())
@@ -346,6 +350,9 @@ sub getData
 	my $mapp = MApp->new;
 	
 	my $app_name = 'kgmail';
+
+	print "Conneccting to KWallet\n"; $|++;
+	
 	my $bus = Net::DBus->find() or die "Can't find DBus";
 	my $kwallet_service = $bus->get_service('org.kde.kwalletd') or die "Can't get kwallet";
 
